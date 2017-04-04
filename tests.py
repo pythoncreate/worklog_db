@@ -1,77 +1,63 @@
 import unittest
+import unittest.mock as mock
+
+import testfile
 
 from peewee import *
+from playhouse.test_utils import test_database
 
-import work_log_db
+test_db = SqliteDatabase(':memory:')
+test_db.connect()
+test_db.create_tables([testfile.Entry], safe=True)
 
-TEST_DB = SqliteDatabase(':memory:')
-TEST_DB.connect()
-TEST_DB.create_tables([work_log_db.Entry], safe=True)
-
-TEST_DATA = {
-    'name': 'chris stuart',
-    'task': 'gardening',
-    'minutes': '30',
-    'date': '2017/02/2016',
-    'notes': 'planted roses'
-}
-
+TEST = {"name": "chris stuart",
+        "task": "bowling",
+        "date": "2017-03-01",
+        "minutes": 30,
+        "notes": "ten strikes"
+        }
 
 class LogTests(unittest.TestCase):
+    @staticmethod
+    def create_entries():
+        testfile.Entry.create(
+            name=TEST["name"],
+            task=TEST["task"],
+            date=TEST["date"],
+            minutes=TEST["minutes"],
+            notes=TEST["notes"])
 
-    def setUp(self):
-        self.Entry = work_log_db.view_entries(TEST_DATA)
+    def test_get_employee(self):
+        with mock.patch('builtins.input', return_value= TEST["name"]):
+            assert testfile.get_name() == TEST["name"]
 
-    def find_employee(self):
-        self.assertTrue(TEST_DATA['name'], 'chris stuart')
+        with mock.patch('builtins.input', side_effect=["", "","chris"]):
+            self.assertEqual(testfile.get_name(), "chris")
 
-    def test_equal_minutes(self):
-        minutes = 30
-        search_time = 30
-        self.assertEqual(minutes, search_time)
+    def test_get_minutes(self):
+        with mock.patch('builtins.input', side_effect=["one", "", 6]):
+            self.assertEqual(testfile.get_minutes(), 6)
 
-    def test_minutes_not_equal(self):
-        minutes = 30
-        search_time = 45
-        self.assertNotEqual(minutes,search_time)
+    def test_get_task(self):
+        with mock.patch('builtins.input', side_effect=["", "", "eating"]):
+            self.assertEqual(testfile.get_task(), "eating")
 
-    def test_equal_date(self):
-        date = '2017/04/02'
-        search_date = '2017/04/02'
-        self.assertEqual(date,search_date)
+    def test_get_notes(self):
+        with mock.patch('builtins.input', side_effect=["", "", "brushing teeth"]):
+            self.assertEqual(testfile.get_notes(), "brushing teeth")
 
-    def test_date_not_equal(self):
-        date = '2017/04/02'
-        search_date = '2017/04/01'
-        self.assertNotEqual(date,search_date)
+    def test_delete_entry(self):
+        with test_database(test_db, (testfile.Entry,)):
+            entry = testfile.Entry.create(**TEST)
+            with unittest.mock.patch('builtins.input', side_effect=
+            ["y"]):
+                testfile.delete_entry(entry)
+                self.assertEqual(testfile.Entry.select().count(), 0)
 
-    def test_name_equal(self):
-        name = 'chris stuart'
-        search_employee = 'chris stuart'
-        self.assertEqual(name,search_employee)
+    def test_is_date_not_valid(self):
+        date = 'asldkfjas;ldfj'
+        with self.assertRaises(ValueError):
+            testfile.date_validate(date)
 
-    def test_name_not_equal(self):
-        name = 'chris stuart'
-        search_employee = 'ted jones'
-        self.assertNotEqual(name,search_employee)
-
-    def test_menu(self):
-        choice = 'q'
-        self.assertEqual(choice,'q')
-
-class EntryTests(unittest.TestCase):
-    def setUp(self):
-        self.entry1 = work_log_db.Entry(name='chris', minutes='30', task='garden', date='lkjlkhlj')
-        self.entry2 = work_log_db.Entry(name='joe', minutes='20', task='bowling', date='2017-03-02')
-
-    def test_creation(self):
-        self.assertEqual(self.entry1.name, 'chris')
-        self.assertIn(self.entry1.task, 'gardening')
-        self.assertIsInstance(self.entry2.minutes, str)
-
-    # def test_bad_description(self):
-    #     self.assertRaises(ValueError, work_log_db.view_entries(search_date="alksjfdlskajfd"))
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

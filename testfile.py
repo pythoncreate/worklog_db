@@ -1,26 +1,10 @@
-"""
-Worklog with Database Project for TreeHouse Python Course
-
-Create a command line application that will allow employees to
-enter their name, time worked, task worked on, and general notes
-about the task into a database.
-
-There should be a way to add a new entry, list all entries for
-a particular employee, and list all entries that match a date
-or search term.
-
-Print a report of this information to the screen, including the date,
-title of task, time spent, employee, and general notes.
-
-Created --2017 by Chris Stuart
-"""
 from collections import OrderedDict
 import datetime
 import os
 
 from peewee import *
 
-db = SqliteDatabase('newlog.db')
+db = SqliteDatabase('w.db')
 
 fmt = '%Y-%m-%d'
 
@@ -62,20 +46,86 @@ def menu_loop():
             menu[choice]()
 
 
+def get_name():
+    while True:
+        name = input('> ')
+        if name == "":
+            print("Sorry nothing there. Try again")
+            continue
+        else:
+            return name
+
+
+def get_task():
+    while True:
+        task = input("What task did you do? ")
+        if task == "":
+            print("Sorry nothing there")
+            continue
+        else:
+            return task
+
+
+def get_minutes():
+    while True:
+        minutes = input("How many minutes did it take? ")
+        if minutes == "":
+            print("Sorry nothing there")
+            continue
+        try:
+            minutes = int(minutes)
+            return minutes
+        except ValueError:
+            print ("Sorry invalid entry")
+            continue
+
+
+def get_notes():
+    while True:
+        notes = input("Please enter any notes about the task: ")
+        if notes == "":
+            print("Sorry nothing there.")
+            continue
+        else:
+            return notes
+    
+
 def add_entry():
     """Add an entry"""
     print("Enter your name or 'm' to return to main menu.")
     while True:
-        name = input('> ')
+        name = get_name()
         if name.lower().strip() != 'm':
-            task = input("What task did you do? ")
-            minutes = input("How many minutes did it take? ")
-            notes = input("Please enter any notes about the task: ")
+            task = get_task()
+            minutes = get_minutes()
+            notes = get_notes()
             Entry.create(name=name, task=task, minutes=minutes, notes=notes, date=datetime.date.today().strftime(fmt))
             input("Hit Enter/Return to go back and add a task or view previous entries.")
             break
         else:
             menu_loop()
+
+
+def date_validate(search_date):
+    while True:
+        try:
+            search_date = datetime.datetime.strptime(search_date, fmt).date()
+        except (ValueError, TypeError):
+            print("That is not a match. Please try again")
+            search_by_date()
+        else:
+            return search_date
+
+
+def time_validate(search_time):
+    while True:
+        try:
+            search_time = int(search_time)
+        except ValueError:
+            print("That is not a valid entry")
+            search_by_time()
+        else:
+            return search_time
 
 
 def view_entries(search_employee=None, search_date=None, search_time=None, search_term=None):
@@ -84,33 +134,38 @@ def view_entries(search_employee=None, search_date=None, search_time=None, searc
 
     if search_employee:
         entries = entries.where(Entry.name.contains(search_employee))
+        while True:
+            if not entries:
+                print("Sorry No Match. Try again")
+                search_by_employee()
+                break
+            else:
+                break
 
     elif search_date:
-        try:
-            dt = datetime.datetime.strptime(search_date, fmt).date()
-            entries = entries.where(Entry.date == dt)
-            if entries:
-                found = True
-            else:
-                found = False
-
-        except ValueError:
-            print("\n\n\n")
-            print("Sorry that is not a valid date format")
-
-        if found == False:
-            print("No match")
-
-
-        # else:
-        #     print("Sorry that's not a match try again")
-        #     search_by_date()
+        search_date = date_validate(search_date)
+        entries = entries.where(Entry.date == search_date)
 
     elif search_time:
+        search_time = time_validate(search_time)
         entries = entries.where(Entry.minutes == int(search_time))
+        while True:
+            if not entries:
+                print("Sorry No Match. Try again")
+                search_by_time()
+                break
+            else:
+                break
 
     elif search_term:
         entries = entries.where((Entry.task.contains(search_term))|(Entry.notes.contains(search_term)))
+        while True:
+            if not entries:
+                print("Sorry No Match. Try again")
+                search_by_term()
+                break
+            else:
+                break
 
     for entry in entries:
         clear()
@@ -119,7 +174,7 @@ def view_entries(search_employee=None, search_date=None, search_time=None, searc
         print("Minutes Taken: " + str(entry.minutes))
         print("Task Notes: " + entry.notes)
         print("Date: " + str(entry.date))
-        print('\n\n'+'='*len(entry.name))
+        print('\n\n' + '=' * len(entry.name))
         print('n) next entry')
         print('d) delete entry')
         print('q) return to main menu')
@@ -132,20 +187,15 @@ def view_entries(search_employee=None, search_date=None, search_time=None, searc
 
 
 def search_by_employee():
-    view_entries(search_employee=input('Search query: '))
+    view_entries(search_employee = input('Search By Employee Name: '))
+
 
 def search_by_date():
     view_entries(search_date=input('Enter Date in Format(yyyy-mm-dd)): '))
 
+
 def search_by_time():
-    view_entries(search_time=input('Enter a number of minutes (whole number only): '))
-    # while True:
-    #     search_time = (input('Search query: '))
-    #     try:
-    #         search_time = int(search_time)
-    #         view_entries(search_time)
-    #     except ValueError:
-    #         print("Not a valid entry. Please try again")
+    view_entries(search_time=input('Enter Number Minutes : '))
 
 
 def search_by_term():
